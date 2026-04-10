@@ -469,11 +469,17 @@ function playSound(freq, type, duration, vol = 0.3) {
 `www/js/ads.js` に広告ロジックを集約すること。
 
 ### ads.js の実装
+
+バンドラーを使わないため、Capacitorのグローバルプラグインアクセスを使う。
+ブラウザ開発時はモック動作するフォールバック付き。
+
 ```js
 // www/js/ads.js
-import { AdMob, BannerAdSize, BannerAdPosition, AdMobBannerSize } from '@capacitor-community/admob';
 
-// AdMob ID（admob-ids.md から埋め込む）
+// --- Capacitor環境判定 ---
+const isNative = window.Capacitor && window.Capacitor.isNativePlatform();
+
+// --- AdMob ID（admob-ids.md から埋め込む） ---
 const ADMOB_IDS = {
   banner:        '[バナー広告ユニットID]',
   interstitial:  '[インタースティシャル広告ユニットID]',
@@ -487,32 +493,41 @@ const TEST_IDS = {
   reward:        'ca-app-pub-3940256099942544/5224354917',
 };
 
-// 開発中は true にする
 const USE_TEST_ADS = true;
-const ids = USE_TEST_ADS ? TEST_IDS : ADMOB_IDS;
+const adIds = USE_TEST_ADS ? TEST_IDS : ADMOB_IDS;
 
-export async function initAds() {
-  await AdMob.initialize({
-    initializeForTesting: USE_TEST_ADS,
+// --- ネイティブ実装（Capacitor上で動作） ---
+let _rewardCallback = null;
+
+async function _nativeInitAds() {
+  const AdMob = window.Capacitor.Plugins.AdMob;
+  await AdMob.initialize({ initializeForTesting: USE_TEST_ADS });
+
+  // リワード広告のリスナーは初期化時に1回だけ登録
+  AdMob.addListener('onRewardedVideoAdReward', () => {
+    if (_rewardCallback) { _rewardCallback(); _rewardCallback = null; }
   });
 }
 
-export async function showBanner() {
+async function _nativeShowBanner() {
+  const AdMob = window.Capacitor.Plugins.AdMob;
   await AdMob.showBanner({
-    adId: ids.banner,
-    adSize: BannerAdSize.ADAPTIVE_BANNER,
-    position: BannerAdPosition.BOTTOM_CENTER,
+    adId: adIds.banner,
+    adSize: 'ADAPTIVE_BANNER',
+    position: 'BOTTOM_CENTER',
     isTesting: USE_TEST_ADS,
   });
 }
 
-export async function hideBanner() {
+async function _nativeHideBanner() {
+  const AdMob = window.Capacitor.Plugins.AdMob;
   await AdMob.hideBanner();
 }
 
-export async function showInterstitial(callback) {
+async function _nativeShowInterstitial(callback) {
+  const AdMob = window.Capacitor.Plugins.AdMob;
   try {
-    await AdMob.prepareInterstitial({ adId: ids.interstitial, isTesting: USE_TEST_ADS });
+    await AdMob.prepareInterstitial({ adId: adIds.interstitial, isTesting: USE_TEST_ADS });
     await AdMob.showInterstitial();
   } catch (e) {
     console.warn('Interstitial ad failed:', e);
@@ -520,30 +535,54 @@ export async function showInterstitial(callback) {
   callback();
 }
 
-export async function showReward(onRewarded) {
+async function _nativeShowReward(onRewarded) {
+  const AdMob = window.Capacitor.Plugins.AdMob;
   try {
-    await AdMob.prepareRewardVideoAd({ adId: ids.reward, isTesting: USE_TEST_ADS });
-
-    AdMob.addListener('onRewardedVideoAdReward', () => {
-      onRewarded();
-    });
-
+    _rewardCallback = onRewarded;
+    await AdMob.prepareRewardVideoAd({ adId: adIds.reward, isTesting: USE_TEST_ADS });
     await AdMob.showRewardVideoAd();
   } catch (e) {
     console.warn('Reward ad failed:', e);
-    // フォールバック: 広告が読み込めない場合も恩恵を付与（テスト用）
-    onRewarded();
+    onRewarded(); // フォールバック
   }
 }
+
+// --- ブラウザ用モック実装（開発・デバッグ用） ---
+async function _mockInitAds() { console.log('[AdMob Mock] initialized'); }
+async function _mockShowBanner() { console.log('[AdMob Mock] banner shown'); }
+async function _mockHideBanner() { console.log('[AdMob Mock] banner hidden'); }
+async function _mockShowInterstitial(callback) {
+  console.log('[AdMob Mock] interstitial shown');
+  setTimeout(callback, 500);
+}
+async function _mockShowReward(onRewarded) {
+  console.log('[AdMob Mock] reward ad shown');
+  setTimeout(onRewarded, 500);
+}
+
+// --- 公開API（環境に応じて自動切り替え） ---
+const ADS = {
+  init:              isNative ? _nativeInitAds           : _mockInitAds,
+  showBanner:        isNative ? _nativeShowBanner        : _mockShowBanner,
+  hideBanner:        isNative ? _nativeHideBanner        : _mockHideBanner,
+  showInterstitial:  isNative ? _nativeShowInterstitial  : _mockShowInterstitial,
+  showReward:        isNative ? _nativeShowReward        : _mockShowReward,
+};
 ```
 
-### ブラウザ開発用フォールバック
-Capacitor環境外（ブラウザ直接）で動作確認するために、ads.js 内で
-`window.Capacitor` の存在チェックを行い、ない場合はモック動作させること：
+使用方法（他のJSファイルから）:
 ```js
-const isNative = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform();
+// 初期化
+ADS.init();
 
-// isNative が false の場合、各関数はモック（console.log + 即callback）で動作
+// バナー表示
+ADS.showBanner();
+
+// リワード広告
+ADS.showReward(() => { /* 恩恵付与 */ });
+
+// インタースティシャル
+ADS.showInterstitial(() => { /* 次の画面へ */ });
 ```
 
 ### バナー広告エリアの確保
