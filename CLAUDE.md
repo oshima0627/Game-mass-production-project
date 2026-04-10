@@ -162,10 +162,11 @@ hyper casual game most profitable genre [現在の年] Google Play
 # [ゲームタイトル] 開発指示
 
 ## 最重要方針
-- index.html 1ファイルで完全に動作するゲームを作る
+- HTML/JS/CSS + Capacitor のプロジェクト構造で作る
 - コードは最後まで書き切る。省略・TODO・「以下同様」は禁止
 - スマホ縦持ちで快適に遊べることを最優先する
 - 見た目・操作感・エフェクトすべてにこだわり、ストアに出せる品質にする
+- 広告は @capacitor-community/admob プラグインで実装する
 
 ---
 
@@ -176,27 +177,119 @@ hyper casual game most profitable genre [現在の年] Google Play
 
 ## 技術スタック
 - 言語: JavaScript（ES2020+）
-- 描画: [Three.js 0.165.0 / Phaser.js 3.80.0]
-- CDN:
-  [該当するCDNコードをそのまま記載]
-- 対象: スマホブラウザ縦持ち（Capacitorでモバイル化予定）
-- ファイル: index.html 1ファイルで完結
+- 描画: [Three.js 0.165.0 / Phaser.js 3.80.0 / 素のCanvas 2D]
+- モバイル: Capacitor 6
+- 広告: @capacitor-community/admob
+- 対象: Android（将来iOS）
 
-### 必須メタ設定（<head>内に必ず入れる）
+### プロジェクト構造
+```
+[game-title-kebab-case]/
+├── package.json
+├── capacitor.config.ts
+├── www/                          # Webアセット（Capacitorが配信）
+│   ├── index.html                # HTML骨格のみ
+│   ├── css/
+│   │   └── style.css             # 全スタイル
+│   └── js/
+│       ├── main.js               # エントリーポイント・ゲームループ
+│       ├── state.js              # 状態管理（STATE オブジェクト）
+│       ├── renderer.js           # 描画処理
+│       ├── input.js              # タッチ・キーボード入力
+│       ├── sound.js              # Web Audio API サウンド
+│       ├── particles.js          # パーティクルエフェクト
+│       ├── ui.js                 # UI画面（タイトル・ゲームオーバー等）
+│       └── ads.js                # AdMob広告管理
+├── android/                      # `npx cap add android` で生成
+└── ios/                          # 将来: `npx cap add ios` で生成
+```
+
+### package.json
+```json
+{
+  "name": "[game-title-kebab-case]",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "cap:init": "npx cap init [game-title-kebab-case] [com.ドメイン.appid] --web-dir www",
+    "cap:add": "npx cap add android",
+    "cap:sync": "npx cap sync",
+    "cap:open": "npx cap open android",
+    "cap:run": "npx cap run android"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor-community/admob": "^6.0.0"
+  }
+}
+```
+
+### capacitor.config.ts
+```ts
+import type { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: '[com.ドメイン.appid]',
+  appName: '[ゲームタイトル]',
+  webDir: 'www',
+  server: {
+    androidScheme: 'https'
+  }
+};
+
+export default config;
+```
+
+### 必須メタ設定（www/index.html の <head> 内に必ず入れる）
+```html
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { overflow: hidden; background: #000; touch-action: none; }
-</style>
+```
+
+### 必須スタイル（www/css/style.css の先頭）
+```css
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { overflow: hidden; background: #000; touch-action: none; }
+```
 
 ---
 
 ## コードアーキテクチャ
 
+### www/index.html の構成
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>[ゲームタイトル]</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <!-- UI要素（タイトル・ゲームオーバー画面など） -->
+
+  <script src="js/state.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/particles.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/ads.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
+```
+
+### 状態管理（www/js/state.js）
+
 以下の状態管理パターンを必ず使うこと：
 
 ```js
+// www/js/state.js
 const STATE = {
   current: 'title', // 'title' | 'playing' | 'gameover' | 'result'
   score: 0,
@@ -210,9 +303,12 @@ function setState(newState) {
 }
 ```
 
-ゲームループは requestAnimationFrame を使い、deltaTime で物理を計算する：
+### ゲームループ（www/js/main.js）
+
+requestAnimationFrame を使い、deltaTime で物理を計算する：
 
 ```js
+// www/js/main.js
 let lastTime = 0;
 function gameLoop(timestamp) {
   const dt = Math.min((timestamp - lastTime) / 1000, 0.05); // 最大50ms
@@ -369,41 +465,106 @@ function playSound(freq, type, duration, vol = 0.3) {
 
 ## 広告配置（必ず実装すること）
 
-### バナー広告（常時表示）
-```html
-<div id="ad-banner" style="
-  position: fixed; bottom: 0; left: 0; right: 0; height: 60px;
-  background: #1a1a1a; border-top: 1px solid #333;
-  display: flex; align-items: center; justify-content: center;
-  color: #666; font-size: 11px; letter-spacing: 1px; z-index: 1000;
-">ADVERTISEMENT</div>
+広告は `@capacitor-community/admob` プラグインで実装する。
+`www/js/ads.js` に広告ロジックを集約すること。
+
+### ads.js の実装
+```js
+// www/js/ads.js
+import { AdMob, BannerAdSize, BannerAdPosition, AdMobBannerSize } from '@capacitor-community/admob';
+
+// AdMob ID（admob-ids.md から埋め込む）
+const ADMOB_IDS = {
+  banner:        '[バナー広告ユニットID]',
+  interstitial:  '[インタースティシャル広告ユニットID]',
+  reward:        '[リワード広告ユニットID]',
+};
+
+// テスト用ID（開発中はこちらを使う）
+const TEST_IDS = {
+  banner:        'ca-app-pub-3940256099942544/6300978111',
+  interstitial:  'ca-app-pub-3940256099942544/1033173712',
+  reward:        'ca-app-pub-3940256099942544/5224354917',
+};
+
+// 開発中は true にする
+const USE_TEST_ADS = true;
+const ids = USE_TEST_ADS ? TEST_IDS : ADMOB_IDS;
+
+export async function initAds() {
+  await AdMob.initialize({
+    initializeForTesting: USE_TEST_ADS,
+  });
+}
+
+export async function showBanner() {
+  await AdMob.showBanner({
+    adId: ids.banner,
+    adSize: BannerAdSize.ADAPTIVE_BANNER,
+    position: BannerAdPosition.BOTTOM_CENTER,
+    isTesting: USE_TEST_ADS,
+  });
+}
+
+export async function hideBanner() {
+  await AdMob.hideBanner();
+}
+
+export async function showInterstitial(callback) {
+  try {
+    await AdMob.prepareInterstitial({ adId: ids.interstitial, isTesting: USE_TEST_ADS });
+    await AdMob.showInterstitial();
+  } catch (e) {
+    console.warn('Interstitial ad failed:', e);
+  }
+  callback();
+}
+
+export async function showReward(onRewarded) {
+  try {
+    await AdMob.prepareRewardVideoAd({ adId: ids.reward, isTesting: USE_TEST_ADS });
+
+    AdMob.addListener('onRewardedVideoAdReward', () => {
+      onRewarded();
+    });
+
+    await AdMob.showRewardVideoAd();
+  } catch (e) {
+    console.warn('Reward ad failed:', e);
+    // フォールバック: 広告が読み込めない場合も恩恵を付与（テスト用）
+    onRewarded();
+  }
+}
 ```
-- ゲームキャンバスの高さ = window.innerHeight - 60px（バナー分を引く）
+
+### ブラウザ開発用フォールバック
+Capacitor環境外（ブラウザ直接）で動作確認するために、ads.js 内で
+`window.Capacitor` の存在チェックを行い、ない場合はモック動作させること：
+```js
+const isNative = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform();
+
+// isNative が false の場合、各関数はモック（console.log + 即callback）で動作
+```
+
+### バナー広告エリアの確保
+- Capacitorバナー広告は画面下部にオーバーレイ表示される
+- ゲームキャンバスの高さ = `window.innerHeight - 60px`（バナー分を引く）
+- CSS で `body` に `padding-bottom: 60px` を設定
 
 ### リワード広告ボタン（ゲームオーバー画面）
 ```html
-<button id="reward-btn" style="
+<button id="reward-btn" class="btn-reward">▶ 広告を見て続ける</button>
+```
+```css
+.btn-reward {
   background: linear-gradient(135deg, #f5a623, #f76b1c);
   color: white; border: none; border-radius: 50px;
   padding: 16px 32px; font-size: 18px; font-weight: 700;
   cursor: pointer; box-shadow: 0 4px 15px rgba(247,107,28,0.5);
-">▶ 広告を見て続ける</button>
-```
-- 動作: クリック → [残機+1 / 時間回復 / ゲーム継続 などゲームに合った恩恵]
-- AdMob連携前: クリックで即座に恩恵付与（テスト用）
-
-### インタースティシャル広告（ゲームオーバー確定時）
-```js
-function showInterstitial(callback) {
-  // 暗転オーバーレイを表示（AdMob連携前の代替演出）
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:#000;z-index:9999;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;';
-  overlay.textContent = '広告読み込み中...';
-  document.body.appendChild(overlay);
-  setTimeout(() => { overlay.remove(); callback(); }, 1500);
+  touch-action: manipulation;
 }
-// ゲームオーバー時に呼び出す: showInterstitial(() => showResultScreen());
 ```
+- 動作: クリック → `showReward(() => { /* [恩恵付与] */ })`
 
 ---
 
@@ -469,21 +630,32 @@ font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
 
 以下の順番で実装すること（途中で止まらず最後まで完成させる）：
 
-1. HTML骨格・CSS・広告エリアの配置
-2. ゲームループ（requestAnimationFrame）の確立
-3. タイトル画面の表示
-4. コアゲームメカニクス（最低限遊べる状態）
-5. ゲームオーバー判定・画面遷移
-6. スコア・ハイスコア（localStorage）
-7. 難易度上昇ロジック
-8. パーティクル・エフェクト
-9. サウンドフィードバック
-10. UIの仕上げ・アニメーション
-11. 全体のバランス調整・デバッグ
+1. プロジェクト初期化（package.json・capacitor.config.ts・ディレクトリ構造）
+2. www/index.html 骨格・www/css/style.css・JSファイル群の作成
+3. state.js（状態管理）・main.js（ゲームループ）の確立
+4. renderer.js（描画処理）・ui.js（タイトル画面）
+5. input.js（タッチ・キーボード入力）
+6. コアゲームメカニクス（最低限遊べる状態）
+7. ゲームオーバー判定・画面遷移
+8. スコア・ハイスコア（localStorage）
+9. 難易度上昇ロジック
+10. particles.js（パーティクルエフェクト）
+11. sound.js（サウンドフィードバック）
+12. ads.js（AdMob広告統合）
+13. UIの仕上げ・アニメーション
+14. Capacitorセットアップ（`npm install` → `npx cap add android` → `npx cap sync`）
+15. 全体のバランス調整・デバッグ
 
 ---
 
 ## 完成チェックリスト（すべてにチェックを入れてから納品）
+
+### プロジェクト構造
+- [ ] package.json が正しく設定されている
+- [ ] capacitor.config.ts が正しく設定されている
+- [ ] www/ 以下にファイルが正しく分割されている（index.html, css/, js/）
+- [ ] `npm install` が成功する
+- [ ] `npx cap sync` が成功する
 
 ### 機能
 - [ ] タイトル画面でSTARTボタンを押すとゲームが始まる
@@ -496,11 +668,13 @@ font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
 - [ ] 特殊要素（[アイテム名など]）が機能する
 
 ### 広告
-- [ ] バナー広告エリアが画面下部に常時表示される
+- [ ] ads.js に @capacitor-community/admob の実装がある
+- [ ] ブラウザ用フォールバック（モック動作）が実装されている
+- [ ] バナー広告エリアが画面下部に確保されている
 - [ ] ゲームキャンバスがバナーと重なっていない
 - [ ] リワード広告ボタンがゲームオーバー画面に表示される
 - [ ] リワードボタンをタップすると恩恵が発生する
-- [ ] インタースティシャル演出がゲームオーバー時に表示される
+- [ ] インタースティシャル広告がゲームオーバー時に呼ばれる
 
 ### 操作・UX
 - [ ] スマホタッチで正しく操作できる
@@ -524,16 +698,21 @@ font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
 ## 技術スタック（共通）
 
 ```
-言語      : JavaScript
-3D描画    : Three.js 0.165.0（CDN固定）
-2D描画    : Phaser.js 3.80.0（CDN固定）
-UI        : HTML / CSS
-モバイル化 : Capacitor（別セッションで対応）
-広告      : Google AdMob（ID設置のみ・実連携は別途）
-ストア    : Google Play → 将来 App Store（Mac必要）
+言語        : JavaScript（ES2020+）
+3D描画      : Three.js 0.165.0
+2D描画      : Phaser.js 3.80.0 / 素のCanvas 2D
+UI          : HTML / CSS（ファイル分割）
+モバイル化   : Capacitor 6（プロジェクト構造に含む）
+広告        : @capacitor-community/admob（AdMob連携）
+ストア      : Google Play → 将来 App Store（Mac必要）
 ```
 
-### Three.js CDN（バージョン固定）
+### Three.js（npm or CDN）
+npm の場合:
+```bash
+npm install three@0.165.0
+```
+CDN の場合（www/index.html 内）:
 ```html
 <script type="importmap">
 {
@@ -545,9 +724,34 @@ UI        : HTML / CSS
 </script>
 ```
 
-### Phaser.js CDN（バージョン固定）
+### Phaser.js（npm or CDN）
+npm の場合:
+```bash
+npm install phaser@3.80.0
+```
+CDN の場合（www/index.html 内）:
 ```html
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.0/dist/phaser.min.js"></script>
+```
+
+### Capacitor セットアップ手順
+```bash
+# 1. 依存インストール
+npm install
+
+# 2. Capacitor初期化（package.json の scripts に定義済み）
+npx cap init [app-name] [app-id] --web-dir www
+
+# 3. Androidプラットフォーム追加
+npx cap add android
+
+# 4. AndroidManifest.xml に AdMob アプリID を追加
+# android/app/src/main/AndroidManifest.xml の <application> 内:
+# <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="[アプリID]"/>
+
+# 5. 同期 & ビルド
+npx cap sync
+npx cap run android
 ```
 
 ---
@@ -572,7 +776,7 @@ UI        : HTML / CSS
 ## 既存ゲーム（参考実装）
 
 ### Cloud Runner（3Dエンドレスランナー）
-- ファイル：`index.html`
+- 構成：HTML/JS + Capacitor プロジェクト
 - 機能：3レーン・ジャンプ・スライド・障害物3種・コイン・ライフ制・スコア
 - 操作：キーボード＋タッチスワイプ対応
 - テンプレートとして流用可能
