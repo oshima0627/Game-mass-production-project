@@ -186,7 +186,7 @@ hyper casual game most profitable genre [現在の年] Google Play
 ```
 [game-title-kebab-case]/
 ├── package.json
-├── capacitor.config.ts
+├── capacitor.config.json
 ├── www/                          # Webアセット（Capacitorが配信）
 │   ├── index.html                # HTML骨格のみ
 │   ├── css/
@@ -211,7 +211,6 @@ hyper casual game most profitable genre [現在の年] Google Play
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "cap:init": "npx cap init [game-title-kebab-case] [com.ドメイン.appid] --web-dir www",
     "cap:add": "npx cap add android",
     "cap:sync": "npx cap sync",
     "cap:open": "npx cap open android",
@@ -219,26 +218,24 @@ hyper casual game most profitable genre [現在の年] Google Play
   },
   "dependencies": {
     "@capacitor/core": "^6.0.0",
-    "@capacitor/cli": "^6.0.0",
     "@capacitor-community/admob": "^6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.0.0"
   }
 }
 ```
 
-### capacitor.config.ts
-```ts
-import type { CapacitorConfig } from '@capacitor/cli';
-
-const config: CapacitorConfig = {
-  appId: '[com.ドメイン.appid]',
-  appName: '[ゲームタイトル]',
-  webDir: 'www',
-  server: {
-    androidScheme: 'https'
+### capacitor.config.json
+```json
+{
+  "appId": "[com.ドメイン.appid]",
+  "appName": "[ゲームタイトル]",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
   }
-};
-
-export default config;
+}
 ```
 
 ### 必須メタ設定（www/index.html の <head> 内に必ず入れる）
@@ -603,7 +600,7 @@ ADS.showInterstitial(() => { /* 次の画面へ */ });
   touch-action: manipulation;
 }
 ```
-- 動作: クリック → `showReward(() => { /* [恩恵付与] */ })`
+- 動作: クリック → `ADS.showReward(() => { /* [恩恵付与] */ })`
 
 ---
 
@@ -651,7 +648,7 @@ font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
 
 ## モバイル最適化
 
-- **縦画面固定**: `<meta name="screen-orientation" content="portrait">`
+- **縦画面固定**: capacitor.config.json の `plugins` で設定、または Web App Manifest の `"orientation": "portrait"` を使用
 - スクロール無効: `touch-action: none` をbodyに適用
 - タップ遅延除去: `touch-action: manipulation` をボタンに適用
 - セーフエリア対応: `padding-bottom: env(safe-area-inset-bottom)`（iPhone対応）
@@ -669,7 +666,7 @@ font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
 
 以下の順番で実装すること（途中で止まらず最後まで完成させる）：
 
-1. プロジェクト初期化（package.json・capacitor.config.ts・ディレクトリ構造）
+1. プロジェクト初期化（package.json・capacitor.config.json・ディレクトリ構造 → `npm install`）
 2. www/index.html 骨格・www/css/style.css・JSファイル群の作成
 3. state.js（状態管理）・main.js（ゲームループ）の確立
 4. renderer.js（描画処理）・ui.js（タイトル画面）
@@ -682,7 +679,7 @@ font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
 11. sound.js（サウンドフィードバック）
 12. ads.js（AdMob広告統合）
 13. UIの仕上げ・アニメーション
-14. Capacitorセットアップ（`npm install` → `npx cap add android` → `npx cap sync`）
+14. Capacitorビルド（`npx cap add android` → `npx cap sync`）
 15. 全体のバランス調整・デバッグ
 
 ---
@@ -691,7 +688,7 @@ font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
 
 ### プロジェクト構造
 - [ ] package.json が正しく設定されている
-- [ ] capacitor.config.ts が正しく設定されている
+- [ ] capacitor.config.json が正しく設定されている
 - [ ] www/ 以下にファイルが正しく分割されている（index.html, css/, js/）
 - [ ] `npm install` が成功する
 - [ ] `npx cap sync` が成功する
@@ -746,12 +743,8 @@ UI          : HTML / CSS（ファイル分割）
 ストア      : Google Play → 将来 App Store（Mac必要）
 ```
 
-### Three.js（npm or CDN）
-npm の場合:
-```bash
-npm install three@0.165.0
-```
-CDN の場合（www/index.html 内）:
+### Three.js CDN（バンドラー不使用のためCDNで読み込む）
+www/index.html 内に記載：
 ```html
 <script type="importmap">
 {
@@ -763,32 +756,25 @@ CDN の場合（www/index.html 内）:
 </script>
 ```
 
-### Phaser.js（npm or CDN）
-npm の場合:
-```bash
-npm install phaser@3.80.0
-```
-CDN の場合（www/index.html 内）:
+### Phaser.js CDN（バンドラー不使用のためCDNで読み込む）
+www/index.html 内に記載：
 ```html
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.0/dist/phaser.min.js"></script>
 ```
 
 ### Capacitor セットアップ手順
 ```bash
-# 1. 依存インストール
+# 1. 依存インストール（プロジェクト初期化直後に実行）
 npm install
 
-# 2. Capacitor初期化（package.json の scripts に定義済み）
-npx cap init [app-name] [app-id] --web-dir www
-
-# 3. Androidプラットフォーム追加
+# 2. Androidプラットフォーム追加
 npx cap add android
 
-# 4. AndroidManifest.xml に AdMob アプリID を追加
+# 3. AndroidManifest.xml に AdMob アプリID を追加
 # android/app/src/main/AndroidManifest.xml の <application> 内:
 # <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="[アプリID]"/>
 
-# 5. 同期 & ビルド
+# 4. 同期 & ビルド
 npx cap sync
 npx cap run android
 ```
