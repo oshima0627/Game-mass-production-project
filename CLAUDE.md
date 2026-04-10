@@ -122,10 +122,23 @@ hyper casual game most profitable genre [現在の年] Google Play
 
 ---
 
-### STEP 4: 指示文（プロンプト）生成
+### STEP 4: 指示文（プロンプト）生成・保存
 
 以下のテンプレートに設計内容を埋め込み、別のClaude Codeに渡す指示文を生成する。
 **テンプレートの[...]をすべて埋めた状態で出力すること。空欄を残さない。**
+
+生成した指示文は必ずファイルとして保存する：
+
+```
+保存先: instructions/[game-title-kebab-case].md
+例: instructions/coin-rush.md
+```
+
+保存後、以下を伝える：
+```
+指示文を instructions/[ファイル名] に保存しました。
+別のClaude Codeセッションにこのファイルの内容を貼り付けて開発を依頼してください。
+```
 
 ---
 
