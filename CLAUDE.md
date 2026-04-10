@@ -135,7 +135,7 @@ hyper casual game most profitable genre [現在の年] Google Play
 # [ゲームタイトル] 開発指示
 
 ## 最重要方針
-- index.html 1ファイルで完全に動作するゲームを作る
+- Capacitor対応の複数ファイル構成でゲームを作る（下記ファイル構成を厳守）
 - コードは最後まで書き切る。省略・TODO・「以下同様」は禁止
 - スマホ縦持ちで快適に遊べることを最優先する
 - 見た目・操作感・エフェクトすべてにこだわり、ストアに出せる品質にする
@@ -149,13 +149,96 @@ hyper casual game most profitable genre [現在の年] Google Play
 
 ## 技術スタック
 - 言語: JavaScript（ES2020+）
-- 描画: [Three.js 0.165.0 / Phaser.js 3.80.0]
+- 描画: [Three.js 0.165.0 / Phaser.js 3.80.0 / 素のCanvas]
 - CDN:
-  [該当するCDNコードをそのまま記載]
-- 対象: スマホブラウザ縦持ち（Capacitorでモバイル化予定）
-- ファイル: index.html 1ファイルで完結
+  [該当するCDNコードをそのまま記載。素のCanvasなら不要]
+- 対象: スマホブラウザ縦持ち（Capacitorでネイティブアプリ化）
+- 構成: 以下のファイル構成で作成する
 
-### 必須メタ設定（<head>内に必ず入れる）
+## ファイル構成（必ず以下の構造で作成すること）
+
+```
+[game-name]/
+  capacitor.config.json      ← Capacitor設定ファイル
+  package.json               ← npm設定（capacitor依存関係）
+  www/                       ← Webコンテンツルート（Capacitorのデフォルト）
+    index.html               ← HTML骨格・広告エリア・canvasタグのみ
+    css/
+      style.css              ← 共通スタイル（リセット・レイアウト・UI）
+    js/
+      common.js              ← 全ゲーム共通処理（広告・音・パーティクル・フェード）
+      game.js                ← ゲーム固有ロジック（STATE・ループ・ルール・描画）
+```
+
+### 各ファイルの責務
+
+**index.html**（HTMLと読み込みのみ・JSロジックを書かない）
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <!-- 必須メタ設定は下記参照 -->
+  <link rel="stylesheet" href="css/style.css">
+  <title>[ゲームタイトル]</title>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="ad-banner">ADVERTISEMENT</div>
+  <script src="js/common.js"></script>
+  <script src="js/game.js"></script>
+  <!-- Three.js / Phaser.js を使う場合はここにCDNを追加 -->
+</body>
+</html>
+```
+
+**css/style.css**（レイアウト・UI・アニメーション）
+- リセットCSS
+- bodyのoverflow:hidden・touch-action:none
+- バナー広告の固定配置
+- ゲームオーバーパネル等のUIコンポーネント
+- フェード・スライドのCSSアニメーション
+
+**js/common.js**（全ゲーム共通・ゲーム固有コードを書かない）
+- `showInterstitial(callback)` 関数
+- `playSound(freq, type, duration, vol)` 関数（Web Audio API）
+- `spawnParticles(x, y, color, count)` 関数
+- `screenShake(intensity, duration)` 関数
+- `fadeTransition(callback)` 関数
+- バナー広告の初期化
+
+**js/game.js**（ゲーム固有・common.jsの関数を呼び出す）
+- STATE オブジェクト
+- ゲームループ（requestAnimationFrame）
+- 全画面の描画・更新ロジック
+- タッチ操作ハンドラ
+- スコア・ハイスコア管理
+
+### capacitor.config.json
+```json
+{
+  "appId": "com.yourstudio.[gamename]",
+  "appName": "[ゲームタイトル]",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
+```
+
+### package.json
+```json
+{
+  "name": "[game-name]",
+  "version": "1.0.0",
+  "dependencies": {
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/android": "^6.0.0"
+  }
+}
+```
+
+### 必須メタ設定（index.htmlの<head>内に必ず入れる）
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <style>
@@ -442,21 +525,31 @@ font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
 
 以下の順番で実装すること（途中で止まらず最後まで完成させる）：
 
-1. HTML骨格・CSS・広告エリアの配置
-2. ゲームループ（requestAnimationFrame）の確立
-3. タイトル画面の表示
-4. コアゲームメカニクス（最低限遊べる状態）
-5. ゲームオーバー判定・画面遷移
-6. スコア・ハイスコア（localStorage）
-7. 難易度上昇ロジック
-8. パーティクル・エフェクト
-9. サウンドフィードバック
-10. UIの仕上げ・アニメーション
-11. 全体のバランス調整・デバッグ
+1. ファイル・フォルダ構成の作成（capacitor.config.json・package.json・wwwフォルダ）
+2. css/style.css：リセット・レイアウト・バナー広告・UIコンポーネント
+3. js/common.js：広告モック・Web Audio・パーティクル・フェード関数を実装
+4. index.html：HTML骨格・canvasタグ・jsとcssの読み込み
+5. js/game.js：ゲームループ（requestAnimationFrame）の確立
+6. タイトル画面の表示
+7. コアゲームメカニクス（最低限遊べる状態）
+8. ゲームオーバー判定・画面遷移
+9. スコア・ハイスコア（localStorage）
+10. 難易度上昇ロジック
+11. パーティクル・エフェクト（common.jsのspawnParticlesを呼ぶ）
+12. サウンドフィードバック（common.jsのplaySoundを呼ぶ）
+13. UIの仕上げ・アニメーション
+14. 全体のバランス調整・デバッグ
 
 ---
 
 ## 完成チェックリスト（すべてにチェックを入れてから納品）
+
+### ファイル構成
+- [ ] capacitor.config.json が存在し appId・appName・webDir が設定されている
+- [ ] package.json が存在し @capacitor/core・@capacitor/android が含まれている
+- [ ] www/index.html・www/css/style.css・www/js/common.js・www/js/game.js が存在する
+- [ ] index.html にゲームロジックのJSが直書きされていない
+- [ ] common.js にゲーム固有のロジックが書かれていない
 
 ### 機能
 - [ ] タイトル画面でSTARTボタンを押すとゲームが始まる
@@ -497,13 +590,30 @@ font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
 ## 技術スタック（共通）
 
 ```
-言語      : JavaScript
+言語      : JavaScript（ES2020+）
 3D描画    : Three.js 0.165.0（CDN固定）
-2D描画    : Phaser.js 3.80.0（CDN固定）
+2D描画    : Phaser.js 3.80.0（CDN固定） or 素のCanvas
 UI        : HTML / CSS
-モバイル化 : Capacitor（別セッションで対応）
-広告      : Google AdMob（ID設置のみ・実連携は別途）
+モバイル化 : Capacitor 6.x（www/フォルダをネイティブアプリ化）
+広告      : Google AdMob（Capacitorプラグイン経由・実連携は別途）
 ストア    : Google Play → 将来 App Store（Mac必要）
+```
+
+### プロジェクト標準ディレクトリ構成
+
+```
+games/
+  [game-01-name]/         ← 1本目
+    capacitor.config.json
+    package.json
+    www/
+      index.html
+      css/style.css
+      js/common.js
+      js/game.js
+  [game-02-name]/         ← 2本目（common.jsを流用）
+    ...
+  shared/                 ← 将来：全ゲーム共通のcommon.jsをここに
 ```
 
 ### Three.js CDN（バージョン固定）
