@@ -187,6 +187,7 @@ hyper casual game most profitable genre [現在の年] Google Play
 [game-title-kebab-case]/
 ├── package.json
 ├── capacitor.config.json
+├── .gitignore
 ├── www/                          # Webアセット（Capacitorが配信）
 │   ├── index.html                # HTML骨格のみ
 │   ├── css/
@@ -236,6 +237,15 @@ hyper casual game most profitable genre [現在の年] Google Play
     "androidScheme": "https"
   }
 }
+```
+
+### .gitignore
+```
+node_modules/
+android/
+ios/
+.DS_Store
+*.log
 ```
 
 ### 必須メタ設定（www/index.html の <head> 内に必ず入れる）
@@ -431,12 +441,23 @@ canvas.addEventListener('touchend', e => {
   ```
 
 ### サウンドフィードバック（Web Audio API）
-Web Audio APIで以下の効果音を生成する（外部ファイル不要）：
+Web Audio APIで以下の効果音を生成する（外部ファイル不要）。
+**重要**: モバイルブラウザはユーザー操作なしでのAudioContext生成をブロックするため、
+最初のタップ時に初期化すること：
 ```js
+// www/js/sound.js
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
-const audioCtx = new AudioCtx();
+let audioCtx = null;
+
+// 最初のユーザー操作時に呼ぶ（タイトル画面のSTARTボタン等）
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new AudioCtx();
+  }
+}
 
 function playSound(freq, type, duration, vol = 0.3) {
+  if (!audioCtx) return; // 未初期化なら無音
   const o = audioCtx.createOscillator();
   const g = audioCtx.createGain();
   o.connect(g); g.connect(audioCtx.destination);
@@ -447,6 +468,7 @@ function playSound(freq, type, duration, vol = 0.3) {
 }
 
 // 使用例
+// initAudio();                    // STARTボタンタップ時に1回呼ぶ
 // playSound(440, 'sine', 0.1);   // コイン取得
 // playSound(120, 'sawtooth', 0.4); // ゲームオーバー
 // playSound(880, 'square', 0.05); // ジャンプ
@@ -651,7 +673,7 @@ font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
 - **縦画面固定**: capacitor.config.json の `plugins` で設定、または Web App Manifest の `"orientation": "portrait"` を使用
 - スクロール無効: `touch-action: none` をbodyに適用
 - タップ遅延除去: `touch-action: manipulation` をボタンに適用
-- セーフエリア対応: `padding-bottom: env(safe-area-inset-bottom)`（iPhone対応）
+- セーフエリア対応: `padding-bottom: calc(60px + env(safe-area-inset-bottom))`（バナー60px + iPhone対応）
 - キャンバスサイズ: `devicePixelRatio`を考慮してシャープに描画
   ```js
   const dpr = window.devicePixelRatio || 1;
@@ -744,6 +766,11 @@ UI          : HTML / CSS（ファイル分割）
 ```
 
 ### Three.js CDN（バンドラー不使用のためCDNで読み込む）
+**注意**: Three.js使用時は全JSファイルを `<script type="module">` で読み込むこと。
+通常の `<script src>` では importmap が使えない。
+module スコープではグローバル変数が共有されないため、
+`window.STATE = STATE;` のように明示的にグローバルに公開する必要がある。
+
 www/index.html 内に記載：
 ```html
 <script type="importmap">
@@ -754,6 +781,8 @@ www/index.html 内に記載：
   }
 }
 </script>
+<!-- Three.js使用時は type="module" にする -->
+<script type="module" src="js/main.js"></script>
 ```
 
 ### Phaser.js CDN（バンドラー不使用のためCDNで読み込む）
