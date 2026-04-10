@@ -158,7 +158,7 @@ hyper casual game most profitable genre [現在の年] Google Play
 
 ## 指示文テンプレート
 
-```
+````
 # [ゲームタイトル] 開発指示
 
 ## 最重要方針
@@ -670,12 +670,13 @@ font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
 
 ## モバイル最適化
 
-- **縦画面固定**: capacitor.config.json の `plugins` で設定、または Web App Manifest の `"orientation": "portrait"` を使用
+- **縦画面固定**: AndroidManifest.xml の activity に `android:screenOrientation="portrait"` を設定（`npx cap add android` 後に `android/app/src/main/AndroidManifest.xml` を編集）
 - スクロール無効: `touch-action: none` をbodyに適用
 - タップ遅延除去: `touch-action: manipulation` をボタンに適用
 - セーフエリア対応: `padding-bottom: calc(60px + env(safe-area-inset-bottom))`（バナー60px + iPhone対応）
-- キャンバスサイズ: `devicePixelRatio`を考慮してシャープに描画
+- キャンバスサイズ（renderer.js）: `devicePixelRatio`を考慮してシャープに描画
   ```js
+  // www/js/renderer.js
   const dpr = window.devicePixelRatio || 1;
   canvas.width = window.innerWidth * dpr;
   canvas.height = (window.innerHeight - 60) * dpr; // バナー60px分引く
@@ -749,7 +750,7 @@ font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
 - [ ] 画面遷移にフェードアニメーションがある
 - [ ] ハイスコア更新時に「NEW RECORD!」演出がある
 - [ ] コンソールエラーが0件である
-```
+````
 
 ---
 
