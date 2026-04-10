@@ -607,7 +607,7 @@ ADS.showInterstitial(() => { /* 次の画面へ */ });
 ### バナー広告エリアの確保
 - Capacitorバナー広告は画面下部にオーバーレイ表示される
 - ゲームキャンバスの高さ = `window.innerHeight - 60px`（バナー分を引く）
-- CSS で `body` に `padding-bottom: 60px` を設定
+- CSS で `body` に `padding-bottom: calc(60px + env(safe-area-inset-bottom))` を設定（セーフエリア対応込み）
 
 ### リワード広告ボタン（ゲームオーバー画面）
 ```html
@@ -767,10 +767,9 @@ UI          : HTML / CSS（ファイル分割）
 ```
 
 ### Three.js CDN（バンドラー不使用のためCDNで読み込む）
-**注意**: Three.js使用時は全JSファイルを `<script type="module">` で読み込むこと。
-通常の `<script src>` では importmap が使えない。
-module スコープではグローバル変数が共有されないため、
-`window.STATE = STATE;` のように明示的にグローバルに公開する必要がある。
+**注意**: Three.js使用時は **main.js のみ** `<script type="module">` に変更する。
+他のファイル（state.js, sound.js 等）は通常の `<script src>` のまま残す。
+通常scriptはmoduleより先に実行されるため、main.js から STATE 等のグローバル変数にアクセスできる。
 
 www/index.html 内に記載：
 ```html
@@ -782,7 +781,8 @@ www/index.html 内に記載：
   }
 }
 </script>
-<!-- Three.js使用時は type="module" にする -->
+<!-- state.js〜ads.js は通常の <script src> で読み込む（テンプレートindex.html参照） -->
+<!-- main.js のみ module にして Three.js を import する -->
 <script type="module" src="js/main.js"></script>
 ```
 
