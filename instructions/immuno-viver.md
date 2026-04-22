@@ -11,25 +11,33 @@
 体内の免疫細胞を操作し、襲いかかるウイルスの大群を自動攻撃で撃退するローグライク×サバイバー。1ラン5〜15分の短時間勝負で、敵を倒してレベルアップ、3択スキルでランごとに異なるビルドを構築する。章立てステージ進行＋永続強化のハイブリッドカジュアル設計。
 
 ## 技術スタック
-- JavaScript (ES2020+) / 素のCanvas 2D / Capacitor 6 / @capacitor-community/admob
+- **ゲームエンジン**: **Phaser 3.80.0**（CDN読み込み）
+  - 選定理由: Vampire Survivors本家もPhaserで開発、Capacitor公式推奨、モバイルSafari最強、Groups機構で標準的にオブジェクトプール実装可能
+  - レンダラ: **WebGLを強制指定**（`type: Phaser.WEBGL`）。Canvas fallback禁止
+  - 物理エンジン: **Arcade Physics のみ使用**（Matter.jsは重いので使わない）
+- その他: JavaScript (ES2020+) / Capacitor 6 / @capacitor-community/admob
 - プロジェクト構造: `www/` 以下に以下を配置
-  - `index.html`
+  - `index.html`（Phaser CDN読み込み、Canvas要素、全体レイアウト）
   - `css/style.css`
-  - `js/main.js` (エントリーポイント、シーン切替)
-  - `js/game.js` (バトルシーン全体制御)
-  - `js/player.js` (プレイヤー挙動)
-  - `js/enemy.js` (敵挙動・スポーン)
-  - `js/weapon.js` (武器・弾管理)
-  - `js/skill.js` (スキル定義・レベルアップ選択)
-  - `js/treasure.js` (宝箱ドロップ・開封)
-  - `js/stage.js` (章・ステージ・ボス)
-  - `js/meta.js` (永続強化・LV・通貨・localStorage)
-  - `js/ui.js` (HUD・メニュー・リザルト)
-  - `js/renderer.js` (描画)
-  - `js/input.js` (タッチ操作)
-  - `js/sound.js` (Web Audio API生成)
-  - `js/particles.js` (演出)
-  - `js/ads.js` (AdMob制御)
+  - `js/main.js`（Phaser.Game 初期化、シーン登録）
+  - `js/scenes/boot.js`（アセットロード・アトラス読込）
+  - `js/scenes/title.js`（タイトル画面）
+  - `js/scenes/home.js`（章選択・メタ強化・通貨UI）
+  - `js/scenes/battle.js`（バトル本体、プレイヤー・敵・武器制御）
+  - `js/scenes/levelup.js`（レベルアップ3択モーダル、Battleと並行）
+  - `js/scenes/result.js`（リザルト・広告表示）
+  - `js/entities/player.js`
+  - `js/entities/enemy.js`（敵種別ファクトリ）
+  - `js/entities/weapon.js`（武器定義と弾発射ロジック）
+  - `js/entities/projectile.js`（弾プール用クラス）
+  - `js/systems/skills.js`（スキル効果適用）
+  - `js/systems/treasure.js`（宝箱ドロップ・開封）
+  - `js/systems/stage.js`（章・敵ウェーブ・ボス降臨）
+  - `js/systems/meta.js`（永続強化・通貨・localStorage）
+  - `js/systems/pool.js`（汎用オブジェクトプール基底）
+  - `js/systems/ads.js`（AdMob制御）
+  - `assets/atlas.png` + `assets/atlas.json`（全スプライトを1枚に統合したテクスチャアトラス）
+  - `assets/ui.png` + `assets/ui.json`（UIスプライト）
 
 ## 操作
 - 画面下端をタップ＆ドラッグで左右移動（プレイヤーは画面下1/4エリアに固定、横方向のみ移動）
@@ -152,6 +160,24 @@
   - バナー: `ca-app-pub-3940256099942544/6300978111`
   - インタースティシャル: `ca-app-pub-3940256099942544/1033173712`
   - リワード: `ca-app-pub-3940256099942544/5224354917`
+
+## パフォーマンス必須要件（サバイバー系は大量オブジェクトが前提のため必須）
+
+1. **オブジェクトプール全面採用**: 敵・弾・XPオーブ・ダメージ数字・パーティクル・ドロップアイテムは全て Phaser `Group` で事前生成 → 再利用
+   - 生成時: `group.get()` で非アクティブ個体を取得し `setActive(true).setVisible(true)`
+   - 破棄時: `setActive(false).setVisible(false)`（`destroy()` は呼ばない）
+   - プールサイズ目安: 敵500、弾1000、XPオーブ300、ダメージ数字100、パーティクル500
+2. **テクスチャアトラス**: 全ゲーム内スプライトを1枚の `atlas.png` に統合。TexturePackerまたはfree-tex-packerで作成
+3. **Arcade Physics限定**: Matter.jsは絶対使わない。衝突判定はグループ単位のoverlap()で一括処理
+4. **画面内アクティブ敵数キャップ**: 同時出現敵数上限300。超過分はスポーンキューで待機
+5. **ライティング・シャドウ・後処理フィルタ禁止**: モバイルで致命的にFPS落ちる
+6. **WebGLレンダラ強制**: `type: Phaser.WEBGL`、`canvas` へのfallbackは明示的に無効化
+7. **画面外更新スキップ**: カメラ可視範囲外の敵は物理body無効化、AI停止
+8. **ダメージ数字は BitmapText**: 通常Textは描画重い。BitmapFontで事前焼き込み
+9. **Tweenの乱用禁止**: 大量オブジェクトのtweenは止める。座標補間は自前で`delta`使用
+10. **サウンド同時再生数制限**: Web Audio APIで同時5音まで、超過は最古のを停止
+11. **targetFPS: 60 固定**、`Phaser.Game.Config.fps.forceSetTimeOut: false`
+12. **開発中はFPS表示を常にON**: 60を下回った瞬間にプロファイルする運用
 
 ## 実装順序（推奨）
 1. プロジェクト雛形（index.html, Canvas setup, シーン切替）
