@@ -24,12 +24,12 @@ Unityで作るスマホ向けゲーム。**量産ではなく1本のヒット作
 
 | パス | 役割 | ライフサイクル |
 |------|------|----------------|
-| `design/<title>.md` | 作品ごとの設計書 | STEP 3 までは live、STEP 4 で実装リポジトリへコピーした時点で**凍結** |
-| `design/knowledge/` | ジャンル研究・収益化パターン等の横断知見 | **継続 live document**（本リポジトリで唯一） |
-| `design/releases.md` | 実装フェーズに入った作品の台帳 | ステータス遷移のたびに更新 |
-| `design/implementation-template/` | 実装リポジトリに配置する各種テンプレ（`CLAUDE.md`, `gitattributes`, `README.md`, `analytics-spec.md` 等） | 改善あるごとに更新、作品横断で再利用 |
-| `instructions/` | 旧方針（JS+Capacitor 量産）時代のアーカイブ | **参考閲覧のみ**。コード・構成を流用しない |
-| `admob-ids.md` | 旧作用 AdMob ID 管理メモ | **新作では AdMob / Play Console で新規アプリ登録＋新ユニットID発行**（このファイルは参照のみ） |
+| `design/<game-slug>.md` | 作品ごとの設計書（テンプレ: `design/implementation-template/design.md`） | STEP 3 までは live、STEP 4 で実装リポジトリへコピーした時点で**凍結** |
+| `design/knowledge/` | ジャンル研究・収益化パターン等の横断知見（索引は `knowledge/README.md`） | **継続 live document**（本リポジトリで唯一） |
+| `design/releases.md` | 実装フェーズに入った作品の台帳。**作品ステータスの唯一の正本** | ステータス遷移のたびに更新 |
+| `design/implementation-template/` | 実装リポジトリに配置する各種テンプレ（`CLAUDE.md`, `gitattributes`, `gitignore`, `README.md`, `analytics-spec.md`, `design.md`） | 改善あるごとに更新、作品横断で再利用 |
+| `design/legacy/instructions/` | 旧方針（JS+Capacitor 量産）時代のアーカイブ | **参考閲覧のみ**。コード・構成を流用しない |
+| `admob-ids.md` | 旧作用 AdMob ID 管理メモ | 参照のみ。新作の本番 ID は**実装リポジトリ側の secrets / .env で管理**（設計ハブには置かない） |
 
 ### 実装リポジトリ（作品ごとに新規作成）
 
@@ -44,11 +44,30 @@ Unity プロジェクト一式。ストア申請、CI/CD、リリース管理、
 
 ### 連携方法（コピー方式）
 
-- STEP 3 で本リポジトリの `design/<title>.md` に設計書を作成（ここまでは本リポジトリ側が正本）
+- STEP 3 で本リポジトリの `design/<game-slug>.md` に設計書を作成（ここまでは本リポジトリ側が正本）
 - STEP 4 で実装リポジトリの `docs/design.md` にコピー → **以降は実装リポジトリ側のみ更新**
-- 本リポジトリの `design/<title>.md` はコピー直後のまま凍結（着手時スナップショット）
+- 本リポジトリの `design/<game-slug>.md` はコピー直後のまま凍結（着手時スナップショット）
 - 次作でも使える知見は `design/knowledge/` に抽出
 - 実装移行時は `design/releases.md` にエントリを追加
+
+### テンプレ更新の同期方針
+
+`design/implementation-template/` の改善は **新規作品にのみ適用**される。既存の実装リポジトリには自動伝播しない（着手時スナップショット固定）。
+どうしても既存実装リポに取り込みたい改善があれば、該当テンプレファイルの差分を手動で `git cherry-pick` または手コピーする。同期は opt-in で、全作品への一斉反映はしない。
+
+### プレースホルダ規約
+
+テンプレ（`design/implementation-template/*`）で使う置換トークン:
+
+| プレースホルダ | 置換内容 | 例 |
+|------|------|------|
+| `{{Game Title}}` | 人間可読のタイトル（見出し・README 用） | `Cloud Runner` |
+| `{{game-slug}}` | ケバブケースのスラグ（ファイル名・リポ名用） | `cloud-runner` |
+| `{{genre}}` | ジャンル名 | `エンドレスランナー` |
+| `{{game_tagline}}` | 1 行キャッチコピー | `雲の上を疾走するエンドレスダッシュ` |
+| `{{unity_version}}` | Unity 実バージョン（`ProjectSettings/ProjectVersion.txt` を参照） | `6000.0.23f1` |
+
+STEP 4 で Claude がテンプレをコピーする際、**この表に記載のプレースホルダをすべて置換**する（`{{Game Title}}` だけ置換して他を置き忘れるとテンプレ文字が本番に残る）。
 
 ## このセッションの役割
 
@@ -76,7 +95,7 @@ Unity プロジェクト一式。ストア申請、CI/CD、リリース管理、
 
 ### STEP 3: ゲーム設計（ヒット要素を意識）
 
-**Claude**: 以下を簡潔に決めて `design/<title>.md` に保存。**「ヒットを狙うための原則」7項目を設計に当て込んだか**をセルフチェックする。
+**Claude**: `design/implementation-template/design.md` をテンプレに `design/<game-slug>.md` を作成し、以下を簡潔に埋める。**「ヒットを狙うための原則」7項目を設計に当て込んだか**をセルフチェックする。
 - タイトル、コアループ、操作、ルール
 - **フック**（30秒で人に説明できる魅力 / SNS映え要素）
 - **長期プレイを支える要素**（メタ進行、コレクション、リプレイ性など）
@@ -85,28 +104,31 @@ Unity プロジェクト一式。ストア申請、CI/CD、リリース管理、
 - 難易度カーブ、チュートリアル、初回30秒体験（オンボーディング）
 
 **ユーザー**: 設計レビュー、修正指示、STEP 4 への移行判断。
-仕様変更は STEP 4 でコピーするまで随時 `design/<title>.md` を更新。
+仕様変更は STEP 4 でコピーするまで随時 `design/<game-slug>.md` を更新。
 
 ### STEP 4: 実装リポジトリの作成と初期セットアップ
 
 **ユーザー作業**（GUI / 対話が必要なため Claude 実行不可）:
-1. GitHub で新規リポジトリ `game-<title>` を作成（初期は private 推奨）
+1. GitHub で新規リポジトリ `game-{{game-slug}}` を作成（初期は private 推奨）
 2. ローカルに `git clone` し、Git LFS を初期化（`git lfs install`）
 3. Unity Hub から該当ディレクトリに Unity 6 LTS プロジェクトを作成
 4. AdMob / Google Play Console で新規アプリ登録、新しい広告ユニット ID を発行
-5. 実装リポジトリのローカルパスを Claude に伝える
+5. 実装リポジトリのローカルパスと、プレースホルダの置換値（上記「プレースホルダ規約」参照）を Claude に伝える
 
 **Claude 作業**（実装リポジトリの絶対パスを受け取って実行）:
-1. `design/implementation-template/` 配下のテンプレを実装リポジトリにコピー
-   - `CLAUDE.md` → 実装リポのルート（`<GAME_TITLE>` プレースホルダを置換）
-   - `gitattributes` → `.gitattributes`
-   - `README.md` → 実装リポのルート（プレースホルダ置換）
-   - `analytics-spec.md` → `docs/analytics-spec.md`
-2. `.gitignore` を [github/gitignore の Unity.gitignore](https://github.com/github/gitignore/blob/main/Unity.gitignore) ベースで配置
-3. `ProjectSettings/EditorSettings.asset` を編集し Force Text / Visible Meta Files 有効化
-4. `Assets/_Project/` のディレクトリ雛形作成（`Scripts/` `Prefabs/` `Scenes/` `Art/` `Audio/` `Settings/` `Addressables/`）
-5. 本リポジトリの `design/<title>.md` を実装リポの `docs/design.md` にコピー
-6. 本リポジトリ側で `design/releases.md` に作品エントリを追加し、`design/<title>.md` はそのまま凍結
+1. `design/implementation-template/gitignore` → 実装リポの `.gitignore` にコピー
+2. `design/implementation-template/gitattributes` → 実装リポの `.gitattributes` にコピー
+3. `git add .gitattributes && git commit -m "Add Git LFS tracking"` を実行
+4. **LFS 遡及追跡**: Unity Hub が既に生成したアセットを LFS に乗せるため、`git lfs migrate import --no-rewrite --include="*.png,*.psd,*.tga,*.jpg,*.jpeg,*.fbx,*.obj,*.wav,*.mp3,*.ogg,*.mp4,*.mov,*.unity,*.asset,*.prefab"` を実行（**`.gitattributes` コミット後・初回アセットコミット前に必ず実行**）
+5. `ProjectSettings/EditorSettings.asset` を編集し Force Text（`m_SerializationMode: 2`）/ Visible Meta Files（`m_ExternalVersionControlSupport: Visible Meta Files`）を有効化
+6. `Assets/_Project/` のディレクトリ雛形作成:
+   - `Scripts/Runtime/`, `Scripts/Editor/`, `Scripts/Tests/`
+   - `Prefabs/`, `Scenes/`, `Art/`, `Audio/`, `Shaders/`, `Settings/`, `Addressables/`
+7. `design/implementation-template/CLAUDE.md` → 実装リポのルートにコピー（プレースホルダをすべて置換）
+8. `design/implementation-template/README.md` → 実装リポのルートにコピー（プレースホルダ置換）
+9. `design/implementation-template/analytics-spec.md` → 実装リポの `docs/analytics-spec.md` にコピー
+10. 本リポジトリの `design/<game-slug>.md` を実装リポの `docs/design.md` にコピー
+11. 本リポジトリ側で `design/releases.md` に作品エントリを追加（日付は ISO 8601）、`design/<game-slug>.md` はそのまま凍結
 
 以降、本リポジトリでの作業は完了。実装フェーズは実装リポジトリ側の別セッションで継続する。
 

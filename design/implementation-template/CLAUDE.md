@@ -1,7 +1,7 @@
-# <GAME_TITLE>（実装リポジトリ）
+# {{Game Title}}（実装リポジトリ）
 
 Unity で開発中のモバイルゲーム。最新仕様は必ず `docs/design.md` を参照する。
-設計ハブ（`game-design-hub`）の `design/<GAME_TITLE>.md` は着手時点のスナップショットであり、現在の仕様とは食い違う可能性がある。
+設計ハブ（`game-design-hub`）の `design/{{game-slug}}.md` は着手時点のスナップショットであり、現在の仕様とは食い違う可能性がある。
 
 ## Git 運用方針
 
@@ -15,7 +15,7 @@ Unity で開発中のモバイルゲーム。最新仕様は必ず `docs/design.
 
 | 項目 | 技術 |
 |------|------|
-| ゲームエンジン | Unity 6 LTS系（プロジェクト作成時の最新 LTS に固定） |
+| ゲームエンジン | Unity {{unity_version}}（例: `6000.0.23f1`、正本は `ProjectSettings/ProjectVersion.txt`） |
 | 言語 | C# (.NET Standard 2.1) |
 | レンダーパイプライン | URP |
 | UI | uGUI |
@@ -30,17 +30,20 @@ Unity で開発中のモバイルゲーム。最新仕様は必ず `docs/design.
 ## プロジェクト構成
 
 `Assets/_Project/` 配下:
-- `Scripts/`: C# スクリプト（機能単位で `.asmdef`）
+- `Scripts/Runtime/`: ランタイム C# スクリプト（機能単位で `.asmdef`）
+- `Scripts/Editor/`: Editor 拡張・ビルドスクリプト（`*.Editor.asmdef`）
+- `Scripts/Tests/`: EditMode / PlayMode テスト
 - `Prefabs/`
 - `Scenes/`
 - `Art/`
 - `Audio/`
+- `Shaders/`
 - `Settings/`
 - `Addressables/`
 
 ## Analytics イベント命名規約
 
-`design/implementation-template/analytics-spec.md` を参照（設計ハブから初期コピー済み）。
+`docs/analytics-spec.md` を参照（設計ハブから初期コピー済み、以降はこのリポジトリ側が正本）。
 追加イベントを実装する場合は snake_case、動詞_名詞順、時間 `_sec` サフィックス、金額 `_usd` サフィックスを厳守。
 
 ## シークレット管理
@@ -51,6 +54,15 @@ Unity で開発中のモバイルゲーム。最新仕様は必ず `docs/design.
 - 本番 AdMob ID
 
 CI の secrets または `.env` + ビルド時注入を採用。ローカルの sample は `*.example` として拡張子を分けてコミット可。
+
+## CI/CD
+
+- **ビルド**: GitHub Actions + `game-ci/unity-builder`（Android APK/AAB、iOS xcarchive）
+- **配布**: Android は Firebase App Distribution / Play 内部テスト、iOS は TestFlight（Fastlane でアップロード自動化）
+- **バージョン採番**: `semver` + CI で `PlayerSettings.bundleVersion` と `bundleVersionCode` を自動インクリメント
+- **Unity ライセンス**: Personal ライセンスは Unity Activate の手順を CI secrets に登録
+
+初期セットアップ時はスタブのワークフロー（`.github/workflows/build.yml`）だけ置いて、ソフトローンチ前に実装する。
 
 ## リリース前チェックリスト
 

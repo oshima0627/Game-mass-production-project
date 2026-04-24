@@ -1,0 +1,68 @@
+# Unity .gitignore テンプレート（github/gitignore の Unity.gitignore ベース）
+# 実装リポジトリのルートに `.gitignore` としてコピーする
+
+# Unity 生成物
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+
+# Assets/AssetStoreTools plugins
+[Aa]ssets/AssetStoreTools*
+
+# Gradle キャッシュ
+[Aa]ssets/[Pp]lugins/[Aa]ndroid/*.gradle
+[Aa]ssets/[Pp]lugins/[Aa]ndroid/**/build/
+
+# ノイズ
+*.booproj
+*.pidb
+*.suo
+*.user
+*.userprefs
+*.unityproj
+*.dll
+*.mdb
+*.pdb
+*.opendb
+*.VC.db
+
+# OS / エディタ
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+
+# ビルド成果物
+*.apk
+*.aab
+*.ipa
+*.unitypackage
+
+# Crashlytics / Firebase 設定（本番用はコミットしない）
+google-services.json
+GoogleService-Info.plist
+
+# シークレット
+*.keystore
+*.jks
+.env
+.env.local
+.env.*.local
+
+# Addressables ビルドキャッシュ
+[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
+ServerData/
+
+# Unity Editor バックアップ
+*.backup
